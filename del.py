@@ -1,0 +1,39 @@
+from pyflink.table import EnvironmentSettings, StreamTableEnvironment
+from datetime import datetime, timedelta
+
+class FeatureEngineering:
+
+
+    def __init__(self):
+        self.settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
+        self.table_env = StreamTableEnvironment.create(environment_settings=self.settings)
+        self.table_env.execute_sql(open('source.sql', 'r').read())
+        self.table_env.execute_sql(open('sink.sql', 'r').read())
+
+    def process(self):
+        one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+
+        result = self.table_env.sql_query(
+            f"""
+            SELECT sensor_id, timestamp, temperature, pressure
+            FROM sensor_raw_data
+            WHERE timestamp >= TIMESTAMP '{one_hour_ago.strftime("%Y-%m-%d %H:%M:%S")}'
+            """
+        )
+
+        result.execute_insert('sensor_data_past_hour').wait()
+
+    def run(self):
+        self.process()
+
+if __name__ == '__main__':
+    FeatureEngineering().run()
+
+
+
+result = table_env.sql_query(
+    f"""
+    SELECT * 
+    FROM sensor_raw_data
+"""
+)

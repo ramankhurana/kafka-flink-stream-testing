@@ -1,0 +1,86 @@
+version: '3.7'
+
+networks:
+  my-network:
+    driver: bridge
+
+services:
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+    networks:
+      - my-network
+
+  kafka:
+    image: bitnami/kafka:latest
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_BROKER_ID: 1
+      KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE: "false"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+    networks:
+      - my-network
+
+  data_ingestion:
+    build: ./data_ingestion
+    depends_on:
+      - kafka
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TOPIC=refit.raw.data
+    networks:
+      - my-network
+
+  data_consumer:
+    build: ./data_consumer
+    depends_on:
+      - kafka
+      - data_ingestion
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TOPIC=refit.feature.data
+    networks:
+      - my-network
+
+  jobmanager:
+    image: flink:1.14.3-scala_2.12
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+    networks:
+      - my-network
+
+  taskmanager:
+    image: flink:1.14.3-scala_2.12
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+    networks:
+      - my-network
+
+  feature_engineering:
+    build: ./flink_job
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SOURCE_TOPIC: refit.raw.data
+      KAFKA_SINK_TOPIC: refit.feature.data
+      JOBMANAGER_ADDRESS: jobmanager
+      JOBMANAGER_PORT: 6123
+    depends_on:
+      - kafka
+      - jobmanager
+      - taskmanager
+    networks:
+      - my-network
