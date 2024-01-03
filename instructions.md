@@ -1,9 +1,7 @@
-* if there is some container already running this can be removed using [make sure you don't need that or some application is not using it already]: 
+* if there is some container already running this can be removed using [make sure you don't need that or some application is not using it already]:
+  
+```docker rm -f zookeeper```
 
-```bash
+* check the status using:
 
-docker rm -f zookeeper
-
-* check the status using: 
-```bash
-docker ps
+```docker ps```
