@@ -1,11 +1,11 @@
-docker network create my-network
-docker run -d --network=my-network --name zookeeper \
+docker network create my-network-1
+docker run -d --network=my-network-1 --name zookeeper \
     -e ZOOKEEPER_CLIENT_PORT=2181 \
     -e ZOOKEEPER_TICK_TIME=2000 \
     -e ALLOW_ANONYMOUS_LOGIN=yes \
     bitnami/zookeeper:latest
 
-docker run -d --network=my-network --name kafka \
+docker run -d --network=my-network-1 --name kafka \
     -e KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181 \
     -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092 \
     -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
@@ -20,7 +20,7 @@ docker build -t data_ingestion ./data_ingestion
 
 docker run -d \
   --name data_ingestion \
-  --network my-network \
+  --network my-network-1 \
   -e KAFKA_BOOTSTRAP_SERVERS=kafka:9092 \
   -e KAFKA_TOPIC=refit.raw.data \
   data_ingestion
@@ -32,7 +32,7 @@ docker build -t data_consumer ./data_consumer
 # Run data_consumer
 docker run -d \
   --name data_consumer \
-  --network my-network \
+  --network my-network-1 \
   -e KAFKA_BOOTSTRAP_SERVERS=kafka:9092 \
   -e KAFKA_TOPIC=refit.feature.data \
   data_consumer
@@ -41,7 +41,7 @@ docker run -d \
 # Run jobmanager
 docker run -d \
   --name jobmanager \
-  --network my-network \
+  --network my-network-1 \
   -p 8081:8081 \
   -e JOB_MANAGER_RPC_ADDRESS=jobmanager \
   flink:1.14.3-scala_2.12 jobmanager
@@ -49,7 +49,7 @@ docker run -d \
 # Run taskmanager
 docker run -d \
   --name taskmanager \
-  --network my-network \
+  --network my-network-1 \
   -e JOB_MANAGER_RPC_ADDRESS=jobmanager \
   flink:1.14.3-scala_2.12 taskmanager
 
@@ -60,7 +60,7 @@ docker build -t feature_engineering ./flink_job
 # Run feature_engineering
 docker run -d \
   --name feature_engineering \
-  --network my-network \
+  --network my-network-1 \
   -e KAFKA_BOOTSTRAP_SERVERS=kafka:9092 \
   -e KAFKA_SOURCE_TOPIC=refit.raw.data \
   -e KAFKA_SINK_TOPIC=refit.feature.data \
